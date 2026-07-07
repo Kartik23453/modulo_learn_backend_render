@@ -92,4 +92,28 @@ router.post("/auth/login", async (req: Request, res: Response) => {
   }
 });
 
+router.get("/auth/me", async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      res.status(401).json({ error: "Missing or invalid Authorization header" });
+      return;
+    }
+
+    const token = authHeader.split("Bearer ")[1];
+    const decoded = await admin.auth().verifyIdToken(token);
+
+    const userDoc = await admin.firestore().collection("users").doc(decoded.uid).get();
+    const userData = userDoc.data();
+
+    res.status(200).json({
+      uid: decoded.uid,
+      email: decoded.email || "",
+      name: userData?.name || "",
+    });
+  } catch (error: any) {
+    res.status(401).json({ error: "Invalid or expired token" });
+  }
+});
+
 export default router;

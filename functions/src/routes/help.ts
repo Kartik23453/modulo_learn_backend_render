@@ -139,10 +139,32 @@ router.get("/help", (req: Request, res: Response) => {
       <div class="example-box">
         <div class="example-label">Example</div>
         <div class="example-code">
-          <span class="comment"># Log in with existing credentials</span><br>
+          <span class="comment"># Log in with existing credentials | Store the token in the sessionStorage</span><br>
           curl -X POST http://localhost:5001/modulo-learn-75e14/us-central1/api/auth/login \<br>
           &nbsp;&nbsp;-H <span class="string">"Content-Type: application/json"</span> \<br>
           &nbsp;&nbsp;-d <span class="string">'{ <span class="key">"email"</span>: "john@example.com", <span class="key">"password"</span>: "secure123" }'</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="endpoint">
+      <span class="method get">GET</span>
+      <span class="url">
+        <span class="url-segment">/</span><span class="url-segment">auth</span><span class="url-segment">/</span><span class="url-param">me</span>
+      </span>
+      <div class="description">Get the currently logged-in user's profile. Requires a Bearer token in the Authorization header.</div>
+      <div class="body-section">
+        <div class="body-title">Headers</div>
+        <div class="body-grid">
+          <div class="field"><span class="field-name">Authorization</span> <span class="field-type">Bearer &lt;token&gt;</span> <span class="field-required">*</span></div>
+        </div>
+      </div>
+      <div class="example-box">
+        <div class="example-label">Example</div>
+        <div class="example-code">
+          <span class="comment"># Get user profile using the token from login</span><br>
+          curl http://localhost:5001/modulo-learn-75e14/us-central1/api/auth/me \<br>
+          &nbsp;&nbsp;-H <span class="string">"Authorization: Bearer &lt;YOUR_ID_TOKEN&gt;"</span>
         </div>
       </div>
     </div>
@@ -175,6 +197,92 @@ router.get("/help", (req: Request, res: Response) => {
           curl -X POST http://localhost:5001/modulo-learn-75e14/us-central1/api/ask \<br>
           &nbsp;&nbsp;-H <span class="string">"Content-Type: application/json"</span> \<br>
           &nbsp;&nbsp;-d <span class="string">'{ <span class="key">"url"</span>: "https://youtube.com/playlist?list=PL..." }'</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="endpoint">
+      <div style="margin-bottom: 12px; font-size: 0.85rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Course Management (Auth required)</div>
+
+      <span class="method post">POST</span>
+      <span class="url">
+        <span class="url-segment">/</span><span class="url-segment">courses</span>
+      </span>
+      <div class="description">Create a course from YouTube timestamps (result from /ask). Stores Course + Lecture nodes in Neo4j.</div>
+      <div class="body-section">
+        <div class="body-title">Request Body</div>
+        <div class="body-grid">
+          <div class="field"><span class="field-name">title</span> <span class="field-type">string</span> <span class="field-required">*</span></div>
+          <div class="field"><span class="field-name">metadata</span> <span class="field-type">string</span></div>
+          <div class="field"><span class="field-name">lectures</span> <span class="field-type">array</span> <span class="field-required">*</span></div>
+        </div>
+      </div>
+      <div class="body-section">
+        <div class="body-title">Headers</div>
+        <div class="body-grid">
+          <div class="field"><span class="field-name">Authorization</span> <span class="field-type">Bearer &lt;token&gt;</span> <span class="field-required">*</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="endpoint">
+      <span class="method post">POST</span>
+      <span class="url">
+        <span class="url-segment">/</span><span class="url-segment">courses</span><span class="url-segment">/</span><span class="url-placeholder">:courseId</span><span class="url-segment">/</span><span class="url-param">enroll</span>
+      </span>
+      <div class="description">Enroll the authenticated user in a course with a deadline.</div>
+      <div class="body-section">
+        <div class="body-title">Request Body</div>
+        <div class="body-grid">
+          <div class="field"><span class="field-name">deadline</span> <span class="field-type">ISO date string</span> <span class="field-required">*</span></div>
+        </div>
+      </div>
+      <div class="body-section">
+        <div class="body-title">Headers</div>
+        <div class="body-grid">
+          <div class="field"><span class="field-name">Authorization</span> <span class="field-type">Bearer &lt;token&gt;</span> <span class="field-required">*</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="endpoint">
+      <span class="method post">POST</span>
+      <span class="url">
+        <span class="url-segment">/</span><span class="url-segment">courses</span><span class="url-segment">/</span><span class="url-placeholder">:courseId</span><span class="url-segment">/</span><span class="url-segment">lectures</span><span class="url-segment">/</span><span class="url-placeholder">:lectureId</span><span class="url-segment">/</span><span class="url-param">complete</span>
+      </span>
+      <div class="description">Mark a lecture as completed by the user.</div>
+      <div class="body-section">
+        <div class="body-title">Headers</div>
+        <div class="body-grid">
+          <div class="field"><span class="field-name">Authorization</span> <span class="field-type">Bearer &lt;token&gt;</span> <span class="field-required">*</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="endpoint">
+      <span class="method get">GET</span>
+      <span class="url">
+        <span class="url-segment">/</span><span class="url-segment">courses</span><span class="url-segment">/</span><span class="url-placeholder">:courseId</span><span class="url-segment">/</span><span class="url-param">progress</span>
+      </span>
+      <div class="description">Get completion percentage, remaining lectures, deadline, and pace for a course.</div>
+      <div class="body-section">
+        <div class="body-title">Headers</div>
+        <div class="body-grid">
+          <div class="field"><span class="field-name">Authorization</span> <span class="field-type">Bearer &lt;token&gt;</span> <span class="field-required">*</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="endpoint">
+      <span class="method get">GET</span>
+      <span class="url">
+        <span class="url-segment">/</span><span class="url-segment">courses</span>
+      </span>
+      <div class="description">List all courses the user is enrolled in, with progress for each.</div>
+      <div class="body-section">
+        <div class="body-title">Headers</div>
+        <div class="body-grid">
+          <div class="field"><span class="field-name">Authorization</span> <span class="field-type">Bearer &lt;token&gt;</span> <span class="field-required">*</span></div>
         </div>
       </div>
     </div>

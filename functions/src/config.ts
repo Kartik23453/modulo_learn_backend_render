@@ -19,3 +19,11 @@ export function getGeminiConfig() {
     apiKey: process.env.GEMINI_API_KEY || "",
   };
 }
+
+export function getNeo4jConfig() {
+  return {
+    uri: process.env.AURADB_URI || "",
+    user: process.env.AURADB_USER || "",
+    password: process.env.AURADB_PASSWORD || "",
+  };
+}
