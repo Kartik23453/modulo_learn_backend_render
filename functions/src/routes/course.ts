@@ -29,7 +29,7 @@ async function requireAuth(req: Request, res: Response, next: NextFunction) {
 
 router.post("/courses", requireAuth, async (req: Request, res: Response) => {
   try {
-    const { title, metadata, lectures } = req.body;
+    const { title, metadata, thumbnail, lectures } = req.body;
 
     if (!title || !lectures?.length) {
       res.status(400).json({ error: "title and lectures[] are required" });
@@ -47,6 +47,7 @@ router.post("/courses", requireAuth, async (req: Request, res: Response) => {
       id: courseId,
       title,
       metadata: metadata || "",
+      thumbnail: thumbnail || "",
       lectures: lecturesWithIds,
     });
 

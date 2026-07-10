@@ -69,7 +69,7 @@ type AskResponse = VideoAskResponse | PlaylistAskResponse;
 
 // ── Courses ───────────────────────────────────────────────────────────────
 interface LectureInput        { title: string; duration?: number; }
-interface CreateCourseRequest { title: string; metadata?: string; lectures: LectureInput[]; }
+interface CreateCourseRequest { title: string; metadata?: string; thumbnail?: string; lectures: LectureInput[]; }
 interface CreateCourseResponse{ message: string; courseId: string; title: string; lectures: number; }
 
 interface EnrollRequest   { deadline: string; }       // ISO date e.g. "2026-09-01"
@@ -83,6 +83,7 @@ interface CourseProgress {
   completedLectures: number;
   percentage: number;         // Math.round(completedLectures / totalLectures * 100)
   deadline: string | null;
+  thumbnail: string | null;   // YouTube thumbnail URL from course creation
 }
 
 type ListCoursesResponse = Array<{
@@ -92,6 +93,7 @@ type ListCoursesResponse = Array<{
   completedLectures: number;
   percentage: number;
   deadline: string | null;
+  thumbnail: string | null;   // YouTube thumbnail URL from course creation
 }>;
 
 // ── Errors ────────────────────────────────────────────────────────────────
@@ -393,6 +395,7 @@ Stores a course and its lectures in Neo4j.
 |-------|------|----------|-------------|
 | `title` | `string` | ✅ | Course name (typically the video title) |
 | `metadata` | `string` | ❌ | YouTube URL or any extra info |
+| `thumbnail` | `string` | ❌ | YouTube thumbnail URL (e.g. from `/ask` response) |
 | `lectures` | `LectureInput[]` | ✅ | Array of lecture objects |
 
 Each `LectureInput`:
@@ -407,6 +410,7 @@ Each `LectureInput`:
 {
   "title": "Rick Astley - Never Gonna Give You Up",
   "metadata": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
   "lectures": [
     { "title": "Intro",   "duration": 0  },
     { "title": "Verse 1", "duration": 30 },
@@ -581,7 +585,8 @@ curl "$BASE_URL/courses/course_1720286400000/progress" \
   "totalLectures": 3,
   "completedLectures": 1,
   "percentage": 33,
-  "deadline": "2026-09-01"
+  "deadline": "2026-09-01",
+  "thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
 }
 ```
 
@@ -594,6 +599,7 @@ curl "$BASE_URL/courses/course_1720286400000/progress" \
 | `completedLectures` | `number` | Lectures this user has completed |
 | `percentage` | `number` | `Math.round(completedLectures / totalLectures * 100)` |
 | `deadline` | `string \| null` | Enrollment deadline, or `null` if not set |
+| `thumbnail` | `string \| null` | YouTube thumbnail URL from course creation |
 
 **Error Responses:**
 
@@ -626,7 +632,8 @@ curl "$BASE_URL/courses" -H "Authorization: Bearer $TOKEN"
     "totalLectures": 3,
     "completedLectures": 1,
     "percentage": 33,
-    "deadline": "2026-09-01"
+    "deadline": "2026-09-01",
+    "thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
   },
   {
     "courseId": "course_1720286500000",
@@ -634,7 +641,8 @@ curl "$BASE_URL/courses" -H "Authorization: Bearer $TOKEN"
     "totalLectures": 5,
     "completedLectures": 5,
     "percentage": 100,
-    "deadline": "2026-08-15"
+    "deadline": "2026-08-15",
+    "thumbnail": null
   }
 ]
 ```
@@ -843,7 +851,7 @@ The data is stored as a graph in Neo4j AuraDB — not a relational database.
 | Label | Properties | Description |
 |-------|-----------|-------------|
 | `User` | `{ id: string }` | Firebase Auth UID |
-| `Course` | `{ id: string, title: string, metadata: string }` | Course from YouTube timestamps |
+| `Course` | `{ id: string, title: string, metadata: string, thumbnail: string }` | Course from YouTube timestamps |
 | `Lecture` | `{ id: string, title: string, duration: number }` | Chapter/timestamp within a course |
 
 ### Relationship Types
@@ -930,7 +938,7 @@ export interface PlaylistAskResponse { type: "playlist"; title: string; url: str
 export type AskResponse = VideoAskResponse | PlaylistAskResponse;
 
 export interface LectureInput         { title: string; duration?: number; }
-export interface CreateCourseRequest  { title: string; metadata?: string; lectures: LectureInput[]; }
+export interface CreateCourseRequest  { title: string; metadata?: string; thumbnail?: string; lectures: LectureInput[]; }
 export interface CreateCourseResponse { message: string; courseId: string; title: string; lectures: number; }
 
 export interface EnrollRequest  { deadline: string; }
@@ -938,11 +946,12 @@ export interface EnrollResponse { message: string; courseId: string; deadline: s
 
 export interface CourseProgress {
   courseTitle: string; totalLectures: number; completedLectures: number;
-  percentage: number; deadline: string | null;
+  percentage: number; deadline: string | null; thumbnail: string | null;
 }
 export type ListCoursesResponse = Array<{
   courseId: string; courseTitle: string; totalLectures: number;
   completedLectures: number; percentage: number; deadline: string | null;
+  thumbnail: string | null;
 }>;
 
 // ── Core fetch helper ─────────────────────────────────────────────────────

@@ -31,6 +31,7 @@ export async function createCourse(course: {
   id: string;
   title: string;
   metadata: string;
+  thumbnail: string;
   lectures: { id: string; title: string; duration: number }[];
 }): Promise<void> {
   const d = getDriver();
@@ -40,7 +41,7 @@ export async function createCourse(course: {
     await session.executeWrite((tx) =>
       tx.run(
         `MERGE (c:Course {id: $courseId})
-         ON CREATE SET c.title = $title, c.metadata = $metadata
+         ON CREATE SET c.title = $title, c.metadata = $metadata, c.thumbnail = $thumbnail
          WITH c
          UNWIND $lectures AS lec
          MERGE (l:Lecture {id: lec.id})
@@ -50,6 +51,7 @@ export async function createCourse(course: {
           courseId: course.id,
           title: course.title,
           metadata: course.metadata,
+          thumbnail: course.thumbnail,
           lectures: course.lectures,
         }
       )
@@ -116,6 +118,7 @@ export async function getCourseProgress(
   completedLectures: number;
   percentage: number;
   deadline: string | null;
+  thumbnail: string | null;
 }> {
   const d = getDriver();
   const session = d.session();
@@ -127,6 +130,7 @@ export async function getCourseProgress(
          MATCH (c)-[:CONTAINS]->(l:Lecture)
          OPTIONAL MATCH (u)-[comp:COMPLETED]->(l)
          RETURN c.title AS courseTitle,
+                c.thumbnail AS thumbnail,
                 COUNT(l) AS totalLectures,
                 COUNT(comp) AS completedLectures,
                 e.deadline AS deadline`,
@@ -144,6 +148,7 @@ export async function getCourseProgress(
 
     return {
       courseTitle: record.get("courseTitle"),
+      thumbnail: record.get("thumbnail") || null,
       totalLectures: total,
       completedLectures: completed,
       percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
@@ -162,6 +167,7 @@ export async function getUserCourses(userId: string): Promise<
     completedLectures: number;
     percentage: number;
     deadline: string | null;
+    thumbnail: string | null;
   }[]
 > {
   const d = getDriver();
@@ -175,6 +181,7 @@ export async function getUserCourses(userId: string): Promise<
          OPTIONAL MATCH (u)-[comp:COMPLETED]->(l)
          RETURN c.id AS courseId,
                 c.title AS courseTitle,
+                c.thumbnail AS thumbnail,
                 COUNT(l) AS totalLectures,
                 COUNT(comp) AS completedLectures,
                 e.deadline AS deadline`,
@@ -188,6 +195,7 @@ export async function getUserCourses(userId: string): Promise<
       return {
         courseId: record.get("courseId"),
         courseTitle: record.get("courseTitle"),
+        thumbnail: record.get("thumbnail") || null,
         totalLectures: total,
         completedLectures: completed,
         percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
