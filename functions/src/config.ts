@@ -1,7 +1,9 @@
 import dotenv from "dotenv";
 import path from "path";
 
-dotenv.config({ path: path.resolve(process.cwd(), "../.env") });
+if (process.env.FUNCTIONS_EMULATOR === "true") {
+  dotenv.config({ path: path.resolve(process.cwd(), "../.env") });
+}
 
 export function getFirebaseConfig() {
   return {
