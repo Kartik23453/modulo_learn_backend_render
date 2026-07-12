@@ -23,97 +23,45 @@ function extractVideoId(url: string): string | null {
 }
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
-const INNERTUBE_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
-const INNERTUBE_API = "https://www.youtube.com/youtubei/v1/player";
 
-const CLIENTS = [
-  { name: "WEB", version: "2.20250101.00.00" },
-  { name: "ANDROID", version: "19.09.37", sdk: 30 },
-  { name: "IOS", version: "19.09.37" },
-  { name: "TV", version: "1.0" },
-];
-
-async function fetchInnertube(videoId: string, clientIdx = 0): Promise<any> {
-  if (clientIdx >= CLIENTS.length) throw new Error("All InnerTube clients failed");
-  const client = CLIENTS[clientIdx];
-  const body: any = {
-    videoId,
-    context: {
-      client: {
-        clientName: client.name,
-        clientVersion: client.version,
-        hl: "en",
-        gl: "US",
-      },
-    },
-  };
-  if (client.sdk) body.context.client.androidSdkVersion = client.sdk;
-
-  const res = await fetch(`${INNERTUBE_API}?key=${INNERTUBE_KEY}`, {
-    method: "POST",
-    body: JSON.stringify(body),
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": UA,
-      "X-YouTube-Client-Name": client.name,
-      "X-YouTube-Client-Version": client.version,
-    },
-  });
-  const data = await res.json();
-  if (data.error) return fetchInnertube(videoId, clientIdx + 1);
-  const ps = data.playabilityStatus?.status;
-  if (ps === "UNPLAYABLE" || ps === "ERROR") return fetchInnertube(videoId, clientIdx + 1);
-  if (data.videoDetails || data.captions) return data;
-  return fetchInnertube(videoId, clientIdx + 1);
+async function fetchOembed(videoId: string): Promise<{ title: string; thumbnail: string }> {
+  const res = await fetch(
+    `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`
+  );
+  const data = await res.json() as any;
+  return { title: data.title || videoId, thumbnail: data.thumbnail_url || "" };
 }
 
-async function parseInnertube(data: any, videoId: string): Promise<VideoInfo> {
-  const vd = data.videoDetails || {};
-  const captions = data.captions?.playerCaptionsTracklistRenderer;
-  const makeCaps = (tracks: any[]) =>
-    tracks?.reduce((acc: any, t: any) => {
-      acc[t.languageCode] = [{ ext: "vtt", url: t.baseUrl + "&fmt=vtt" }];
-      return acc;
-    }, {}) || {};
-
-  let title = vd.title || "";
-  let thumbnail = (vd.thumbnail?.thumbnails?.slice(-1)?.[0]?.url || "").replace(/^\/\//, "https://");
-  let duration = parseInt(vd.lengthSeconds || "0");
-  let description = vd.shortDescription || "";
-
-  if (!title) {
-    try {
-      const oembed = await (await fetch(
-        `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`
-      )).json() as any;
-      title = oembed.title || videoId;
-      thumbnail = oembed.thumbnail_url || thumbnail;
-    } catch {
-      title = videoId;
+async function fetchInnertubeCaptions(videoId: string): Promise<VideoInfo["subtitles"]> {
+  try {
+    const body = {
+      videoId,
+      context: {
+        client: { clientName: "ANDROID", clientVersion: "19.09.37", androidSdkVersion: 30, hl: "en", gl: "US" },
+      },
+    };
+    const res = await fetch("https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8", {
+      method: "POST",
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json", "User-Agent": UA },
+    });
+    const data = await res.json();
+    const captions = data.captions?.playerCaptionsTracklistRenderer;
+    if (!captions?.captionTracks) return {};
+    const caps: any = {};
+    for (const t of captions.captionTracks) {
+      caps[t.languageCode] = [{ ext: "vtt", url: t.baseUrl + "&fmt=vtt" }];
     }
+    return caps;
+  } catch {
+    return {};
   }
-
-  return {
-    title,
-    description,
-    duration,
-    thumbnail,
-    url: "https://youtu.be/" + videoId,
-    chapters: null,
-    subtitles: makeCaps(captions?.captionTracks),
-    automatic_captions: makeCaps(
-      captions?.audioTracks
-        ?.map((a: any) =>
-          a.captionTrackIndices
-            ?.map((i: number) => captions.captionTracks[i])
-        )
-        .flat()
-        .filter(Boolean)
-    ),
-  };
 }
 
 export async function getVideoInfo(url: string): Promise<VideoInfo> {
+  const videoId = extractVideoId(url);
+  if (!videoId) throw new Error("Invalid YouTube URL");
+
   try {
     const data: any = await youtubedl(url, {
       dumpSingleJson: true,
@@ -138,10 +86,20 @@ export async function getVideoInfo(url: string): Promise<VideoInfo> {
       automatic_captions: data.automatic_captions || {},
     };
   } catch {
-    const videoId = extractVideoId(url);
-    if (!videoId) throw new Error("Invalid YouTube URL");
-    const player = await fetchInnertube(videoId);
-    return await parseInnertube(player, videoId);
+    const [oembed, caps] = await Promise.all([
+      fetchOembed(videoId),
+      fetchInnertubeCaptions(videoId),
+    ]);
+    return {
+      title: oembed.title,
+      description: "",
+      duration: 0,
+      thumbnail: oembed.thumbnail,
+      url: "https://youtu.be/" + videoId,
+      chapters: null,
+      subtitles: caps,
+      automatic_captions: {},
+    };
   }
 }
 
