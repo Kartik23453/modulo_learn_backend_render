@@ -6,10 +6,12 @@ import youtubedl from "youtube-dl-exec";
 function writeCookies(): string {
   const dir = mkdtempSync(join(tmpdir(), "yt-cookies-"));
   const file = join(dir, "cookies.txt");
+  const t = "\t";
   writeFileSync(file, [
-    ".youtube.com\tTRUE\t/\tTRUE\t0\tCONSENT\tYES+shp.gws-20240101-0-0",
-    ".youtube.com\tTRUE\t/\tTRUE\t0\tSOCS\tCAI",
-  ].join("\n"), "utf-8");
+    "# Netscape HTTP Cookie File",
+    ".youtube.com" + t + "TRUE" + t + "/" + t + "TRUE" + t + "1893456000" + t + "CONSENT" + t + "YES+shp.gws-20240101-0-0",
+    ".youtube.com" + t + "TRUE" + t + "/" + t + "TRUE" + t + "1893456000" + t + "SOCS" + t + "CAI",
+    ""].join("\n"), "utf-8");
   return file;
 }
 
