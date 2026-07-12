@@ -24,15 +24,15 @@ function extractVideoId(url: string): string | null {
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 
-let cachedProxies: string[] | null = null;
+const MAX_PROXY_ATTEMPTS = 5;
 
-async function getFreshProxies(): Promise<string[]> {
-  if (cachedProxies) return cachedProxies;
+async function getSomeProxies(): Promise<string[]> {
   try {
-    const res = await fetch("https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=5000&country=all&ssl=all&anonymity=all");
+    const res = await fetch("https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=3000&country=all&ssl=all&anonymity=all", {
+      signal: AbortSignal.timeout(5000),
+    });
     const text = await res.text();
-    cachedProxies = text.trim().split("\r\n").filter(Boolean).map((p) => "http://" + p);
-    return cachedProxies!;
+    return text.trim().split("\r\n").filter(Boolean).slice(0, MAX_PROXY_ATTEMPTS).map((p) => "http://" + p);
   } catch {
     return [];
   }
@@ -44,8 +44,8 @@ function getYtdlpOpts(proxy?: string): any {
     noDownload: true,
     extractorArgs: "youtube:player_client=android;skip=webpage",
     userAgent: UA,
-    socketTimeout: 5,
-    retries: 1,
+    socketTimeout: 3,
+    retries: 0,
   };
   if (proxy) opts.proxy = proxy;
   return opts;
@@ -53,22 +53,16 @@ function getYtdlpOpts(proxy?: string): any {
 
 async function tryYtdlpWithProxies(url: string): Promise<any> {
   const envProxies = (process.env.YOUTUBE_PROXIES || "").split(",").filter(Boolean);
+  const proxies = envProxies.length > 0 ? envProxies : await getSomeProxies();
 
-  let proxies = envProxies;
-  if (proxies.length === 0) {
-    proxies = await getFreshProxies();
-  }
-
-  const attempts = [undefined, ...proxies];
-
-  for (const proxy of attempts) {
+  for (const proxy of [undefined, ...proxies]) {
     try {
       return await youtubedl(url, getYtdlpOpts(proxy) as any);
     } catch {
       continue;
     }
   }
-  throw new Error("All yt-dlp attempts (direct + proxies) failed");
+  throw new Error("All yt-dlp attempts failed");
 }
 
 async function fetchOembed(videoId: string): Promise<{ title: string; thumbnail: string }> {
