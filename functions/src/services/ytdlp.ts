@@ -1,4 +1,17 @@
+import { writeFileSync, mkdtempSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
 import youtubedl from "youtube-dl-exec";
+
+function writeCookies(): string {
+  const dir = mkdtempSync(join(tmpdir(), "yt-cookies-"));
+  const file = join(dir, "cookies.txt");
+  writeFileSync(file, [
+    ".youtube.com\tTRUE\t/\tTRUE\t0\tCONSENT\tYES+shp.gws-20240101-0-0",
+    ".youtube.com\tTRUE\t/\tTRUE\t0\tSOCS\tCAI",
+  ].join("\n"), "utf-8");
+  return file;
+}
 
 interface ChapterData {
   start_time: number;
@@ -21,7 +34,8 @@ export async function getVideoInfo(url: string): Promise<VideoInfo> {
   const data: any = await youtubedl(url, {
     dumpSingleJson: true,
     noDownload: true,
-    extractorArgs: "youtube:player_client=web;skip=webpage",
+    cookies: writeCookies(),
+    extractorArgs: "youtube:player_client=android;skip=webpage",
     userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
   } as any);
 
@@ -49,7 +63,8 @@ export async function getPlaylistVideos(url: string): Promise<{
   const data: any = await youtubedl(url, {
     dumpSingleJson: true,
     noDownload: true,
-    extractorArgs: "youtube:player_client=web;skip=webpage",
+    cookies: writeCookies(),
+    extractorArgs: "youtube:player_client=android;skip=webpage",
     userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
   } as any);
 
