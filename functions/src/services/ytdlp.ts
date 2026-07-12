@@ -21,7 +21,7 @@ export async function getVideoInfo(url: string): Promise<VideoInfo> {
   const data: any = await youtubedl(url, {
     dumpSingleJson: true,
     noDownload: true,
-    extractorArgs: "youtube:player_client=android",
+    extractorArgs: "youtube:player_client=android;skip=webpage",
     userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
   } as any);
 
@@ -49,7 +49,7 @@ export async function getPlaylistVideos(url: string): Promise<{
   const data: any = await youtubedl(url, {
     dumpSingleJson: true,
     noDownload: true,
-    extractorArgs: "youtube:player_client=android",
+    extractorArgs: "youtube:player_client=android;skip=webpage",
     userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
   } as any);
 
