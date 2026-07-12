@@ -23,34 +23,74 @@ function extractVideoId(url: string): string | null {
 }
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
+const INNERTUBE_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
+const INNERTUBE_API = "https://www.youtube.com/youtubei/v1/player";
 
-async function fetchVideoPageFallback(videoId: string): Promise<any> {
-  const html = await (await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-    headers: { "User-Agent": UA },
-  })).text();
-  const m = html.match(/ytInitialPlayerResponse\s*=\s*({.*?});/);
-  if (!m) throw new Error("Could not extract player response");
-  return JSON.parse(m[1]);
+const CLIENTS = [
+  { name: "ANDROID", version: "19.09.37", sdk: 30 },
+  { name: "WEB", version: "2.20240101.00.00" },
+  { name: "IOS", version: "19.09.37" },
+];
+
+async function fetchInnertube(videoId: string, clientIdx = 0): Promise<any> {
+  if (clientIdx >= CLIENTS.length) throw new Error("All InnerTube clients failed");
+  const client = CLIENTS[clientIdx];
+  const body: any = {
+    videoId,
+    context: {
+      client: {
+        clientName: client.name,
+        clientVersion: client.version,
+        hl: "en",
+        gl: "US",
+      },
+    },
+  };
+  if (client.sdk) body.context.client.androidSdkVersion = client.sdk;
+
+  const res = await fetch(`${INNERTUBE_API}?key=${INNERTUBE_KEY}`, {
+    method: "POST",
+    body: JSON.stringify(body),
+    headers: {
+      "Content-Type": "application/json",
+      "User-Agent": UA,
+      "X-YouTube-Client-Name": client.name,
+      "X-YouTube-Client-Version": client.version,
+    },
+  });
+  const data = await res.json();
+  if (data.error || data.playabilityStatus?.status === "UNPLAYABLE") {
+    return fetchInnertube(videoId, clientIdx + 1);
+  }
+  return data;
 }
 
-function parsePlayerResponse(data: any): VideoInfo {
-  const details = data.videoDetails || {};
+function parseInnertube(data: any): VideoInfo {
+  const vd = data.videoDetails || {};
   const captions = data.captions?.playerCaptionsTracklistRenderer;
-  const makeCaptions = (tracks: any[]) =>
+  const makeCaps = (tracks: any[]) =>
     tracks?.reduce((acc: any, t: any) => {
-      const lang = t.languageCode;
-      acc[lang] = [{ ext: "vtt", url: t.baseUrl + "&fmt=vtt" }];
+      acc[t.languageCode] = [{ ext: "vtt", url: t.baseUrl + "&fmt=vtt" }];
       return acc;
     }, {}) || {};
+
   return {
-    title: details.title || "",
-    description: details.shortDescription || "",
-    duration: parseInt(details.lengthSeconds || "0"),
-    thumbnail: details.thumbnail?.thumbnails?.slice(-1)?.[0]?.url || "",
-    url: "https://youtu.be/" + details.videoId,
+    title: vd.title || "",
+    description: vd.shortDescription || "",
+    duration: parseInt(vd.lengthSeconds || "0"),
+    thumbnail: (vd.thumbnail?.thumbnails?.slice(-1)?.[0]?.url || "").replace(/^\/\//, "https://"),
+    url: "https://youtu.be/" + vd.videoId,
     chapters: null,
-    subtitles: makeCaptions(captions?.captionTracks),
-    automatic_captions: makeCaptions(captions?.audioTracks?.map((a: any) => a.captionTrackIndices?.map((i: number) => captions.captionTracks[i])).flat().filter(Boolean)),
+    subtitles: makeCaps(captions?.captionTracks),
+    automatic_captions: makeCaps(
+      captions?.audioTracks
+        ?.map((a: any) =>
+          a.captionTrackIndices
+            ?.map((i: number) => captions.captionTracks[i])
+        )
+        .flat()
+        .filter(Boolean)
+    ),
   };
 }
 
@@ -81,8 +121,8 @@ export async function getVideoInfo(url: string): Promise<VideoInfo> {
   } catch {
     const videoId = extractVideoId(url);
     if (!videoId) throw new Error("Invalid YouTube URL");
-    const player = await fetchVideoPageFallback(videoId);
-    return parsePlayerResponse(player);
+    const player = await fetchInnertube(videoId);
+    return parseInnertube(player);
   }
 }
 
