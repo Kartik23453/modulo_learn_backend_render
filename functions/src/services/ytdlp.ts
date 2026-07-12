@@ -24,13 +24,19 @@ function extractVideoId(url: string): string | null {
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 
-const DEFAULT_PROXIES = [
-  "http://38.54.71.67:80",
-  "http://67.43.228.81:16081",
-  "http://198.49.68.80:80",
-  "http://103.111.136.82:8199",
-  "http://45.32.82.194:1080",
-];
+let cachedProxies: string[] | null = null;
+
+async function getFreshProxies(): Promise<string[]> {
+  if (cachedProxies) return cachedProxies;
+  try {
+    const res = await fetch("https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=5000&country=all&ssl=all&anonymity=all");
+    const text = await res.text();
+    cachedProxies = text.trim().split("\r\n").filter(Boolean).map((p) => "http://" + p);
+    return cachedProxies!;
+  } catch {
+    return [];
+  }
+}
 
 function getYtdlpOpts(proxy?: string): any {
   const opts: any = {
@@ -38,15 +44,20 @@ function getYtdlpOpts(proxy?: string): any {
     noDownload: true,
     extractorArgs: "youtube:player_client=android;skip=webpage",
     userAgent: UA,
-    socketTimeout: 15,
+    socketTimeout: 5,
+    retries: 1,
   };
   if (proxy) opts.proxy = proxy;
   return opts;
 }
 
 async function tryYtdlpWithProxies(url: string): Promise<any> {
-  const proxies = (process.env.YOUTUBE_PROXIES || "").split(",").filter(Boolean);
-  if (proxies.length === 0) proxies.push(...DEFAULT_PROXIES);
+  const envProxies = (process.env.YOUTUBE_PROXIES || "").split(",").filter(Boolean);
+
+  let proxies = envProxies;
+  if (proxies.length === 0) {
+    proxies = await getFreshProxies();
+  }
 
   const attempts = [undefined, ...proxies];
 
