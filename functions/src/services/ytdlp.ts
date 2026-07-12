@@ -1,24 +1,9 @@
-import { execFile } from "child_process";
-import { promisify } from "util";
-
-const execFileAsync = promisify(execFile);
+import youtubedl from "youtube-dl-exec";
 
 interface ChapterData {
   start_time: number;
   end_time: number;
   title: string;
-}
-
-interface YtDlpOutput {
-  title: string;
-  description: string;
-  duration: number;
-  thumbnail: string;
-  webpage_url: string;
-  chapters: ChapterData[] | null;
-  subtitles: Record<string, { ext: string; url: string }[]>;
-  automatic_captions: Record<string, { ext: string; url: string }[]>;
-  playlist_title?: string;
 }
 
 export interface VideoInfo {
@@ -33,11 +18,10 @@ export interface VideoInfo {
 }
 
 export async function getVideoInfo(url: string): Promise<VideoInfo> {
-  const { stdout } = await execFileAsync("yt-dlp", [
-    "--dump-json", "--no-download", url,
-  ], { encoding: "utf-8", maxBuffer: 10 * 1024 * 1024 });
-
-  const data: YtDlpOutput = JSON.parse(stdout.trim().split("\n")[0]);
+  const data: any = await youtubedl(url, {
+    dumpSingleJson: true,
+    noDownload: true,
+  } as any);
 
   return {
     title: data.title,
@@ -46,7 +30,7 @@ export async function getVideoInfo(url: string): Promise<VideoInfo> {
     thumbnail: data.thumbnail || "",
     url: data.webpage_url,
     chapters: data.chapters?.length
-      ? data.chapters.map((ch) => ({
+      ? data.chapters.map((ch: ChapterData) => ({
           start_seconds: Math.floor(ch.start_time),
           title: ch.title,
         }))
@@ -60,33 +44,28 @@ export async function getPlaylistVideos(url: string): Promise<{
   title: string;
   videos: VideoInfo[];
 }> {
-  const { stdout } = await execFileAsync("yt-dlp", [
-    "--dump-json", "--no-download", url,
-  ], { encoding: "utf-8", maxBuffer: 50 * 1024 * 1024 });
+  const data: any = await youtubedl(url, {
+    dumpSingleJson: true,
+    noDownload: true,
+  } as any);
 
-  const lines = stdout.trim().split("\n").filter(Boolean);
-  const playlistTitle = JSON.parse(lines[0]).playlist_title || "Untitled Playlist";
+  const videos: VideoInfo[] = data.entries.map((entry: any) => ({
+    title: entry.title,
+    description: entry.description || "",
+    duration: entry.duration || 0,
+    thumbnail: entry.thumbnail || "",
+    url: entry.webpage_url,
+    chapters: entry.chapters?.length
+      ? entry.chapters.map((ch: ChapterData) => ({
+          start_seconds: Math.floor(ch.start_time),
+          title: ch.title,
+        }))
+      : null,
+    subtitles: entry.subtitles || {},
+    automatic_captions: entry.automatic_captions || {},
+  }));
 
-  const videos = lines.map((line) => {
-    const data: YtDlpOutput = JSON.parse(line);
-    return {
-      title: data.title,
-      description: data.description || "",
-      duration: data.duration || 0,
-      thumbnail: data.thumbnail || "",
-      url: data.webpage_url,
-      chapters: data.chapters?.length
-        ? data.chapters.map((ch) => ({
-            start_seconds: Math.floor(ch.start_time),
-            title: ch.title,
-          }))
-        : null,
-      subtitles: data.subtitles || {},
-      automatic_captions: data.automatic_captions || {},
-    };
-  });
-
-  return { title: playlistTitle, videos };
+  return { title: data.title || "Untitled Playlist", videos };
 }
 
 export async function getTranscript(info: VideoInfo): Promise<string | null> {

@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from "express";
-import * as admin from "firebase-admin";
+import { auth } from "../firebase.js";
 import {
   createCourse,
   enrollUser,
@@ -19,7 +19,7 @@ async function requireAuth(req: Request, res: Response, next: NextFunction) {
     }
 
     const token = authHeader.split("Bearer ")[1];
-    const decoded = await admin.auth().verifyIdToken(token);
+    const decoded = await auth.verifyIdToken(token);
     (req as any).userId = decoded.uid;
     next();
   } catch {

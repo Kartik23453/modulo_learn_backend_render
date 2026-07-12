@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import * as admin from "firebase-admin";
+import { auth, firestore } from "../firebase.js";
 import { getFirebaseConfig } from "../config.js";
 
 interface SignupBody {
@@ -24,13 +24,13 @@ router.post("/auth/signup", async (req: Request, res: Response) => {
       return;
     }
 
-    const userRecord = await admin.auth().createUser({
+    const userRecord = await auth.createUser({
       email,
       password,
       displayName: name,
     });
 
-    await admin.firestore().collection("users").doc(userRecord.uid).set({
+    await firestore.collection("users").doc(userRecord.uid).set({
       name,
       email,
       createdAt: new Date().toISOString(),
@@ -77,7 +77,7 @@ router.post("/auth/login", async (req: Request, res: Response) => {
       return;
     }
 
-    const userDoc = await admin.firestore().collection("users").doc(data.localId).get();
+    const userDoc = await firestore.collection("users").doc(data.localId).get();
     const userData = userDoc.data();
 
     res.status(200).json({
@@ -101,7 +101,7 @@ router.get("/auth/me", async (req: Request, res: Response) => {
     }
 
     const token = authHeader.split("Bearer ")[1];
-    const decoded = await admin.auth().verifyIdToken(token);
+    const decoded = await auth.verifyIdToken(token);
 
     const uid = req.query.uid as string;
     if (!uid) {
@@ -114,7 +114,7 @@ router.get("/auth/me", async (req: Request, res: Response) => {
       return;
     }
 
-    const userDoc = await admin.firestore().collection("users").doc(uid).get();
+    const userDoc = await firestore.collection("users").doc(uid).get();
     const userData = userDoc.data() || {};
 
     res.status(200).json({
