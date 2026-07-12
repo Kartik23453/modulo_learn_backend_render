@@ -62,6 +62,13 @@ async function fetchInnertube(videoId: string, clientIdx = 0): Promise<any> {
   if (data.error || data.playabilityStatus?.status === "UNPLAYABLE") {
     return fetchInnertube(videoId, clientIdx + 1);
   }
+  if (!data.videoDetails) {
+    throw new Error("InnerTube: no videoDetails - " + JSON.stringify(Object.keys(data)));
+  }
+  const vd = data.videoDetails;
+  if (!vd.title) {
+    throw new Error("InnerTube: no title - keys: " + JSON.stringify(Object.keys(vd)));
+  }
   return data;
 }
 
