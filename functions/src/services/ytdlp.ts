@@ -27,9 +27,10 @@ const INNERTUBE_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
 const INNERTUBE_API = "https://www.youtube.com/youtubei/v1/player";
 
 const CLIENTS = [
+  { name: "WEB", version: "2.20250101.00.00" },
   { name: "ANDROID", version: "19.09.37", sdk: 30 },
-  { name: "WEB", version: "2.20240101.00.00" },
   { name: "IOS", version: "19.09.37" },
+  { name: "TV", version: "1.0" },
 ];
 
 async function fetchInnertube(videoId: string, clientIdx = 0): Promise<any> {
@@ -59,20 +60,14 @@ async function fetchInnertube(videoId: string, clientIdx = 0): Promise<any> {
     },
   });
   const data = await res.json();
-  if (data.error || data.playabilityStatus?.status === "UNPLAYABLE") {
+  const ps = data.playabilityStatus;
+  if (data.error || ps?.status === "UNPLAYABLE" || ps?.status === "ERROR" || ps?.status === "LOGIN_REQUIRED") {
     return fetchInnertube(videoId, clientIdx + 1);
-  }
-  if (!data.videoDetails) {
-    throw new Error("InnerTube: no videoDetails - " + JSON.stringify(Object.keys(data)));
-  }
-  const vd = data.videoDetails;
-  if (!vd.title) {
-    throw new Error("InnerTube: no title - keys: " + JSON.stringify(Object.keys(vd)));
   }
   return data;
 }
 
-function parseInnertube(data: any): VideoInfo {
+async function parseInnertube(data: any, videoId: string): Promise<VideoInfo> {
   const vd = data.videoDetails || {};
   const captions = data.captions?.playerCaptionsTracklistRenderer;
   const makeCaps = (tracks: any[]) =>
@@ -81,12 +76,29 @@ function parseInnertube(data: any): VideoInfo {
       return acc;
     }, {}) || {};
 
+  let title = vd.title || "";
+  let thumbnail = (vd.thumbnail?.thumbnails?.slice(-1)?.[0]?.url || "").replace(/^\/\//, "https://");
+  let duration = parseInt(vd.lengthSeconds || "0");
+  let description = vd.shortDescription || "";
+
+  if (!title) {
+    try {
+      const oembed = await (await fetch(
+        `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`
+      )).json() as any;
+      title = oembed.title || videoId;
+      thumbnail = oembed.thumbnail_url || thumbnail;
+    } catch {
+      title = videoId;
+    }
+  }
+
   return {
-    title: vd.title || "",
-    description: vd.shortDescription || "",
-    duration: parseInt(vd.lengthSeconds || "0"),
-    thumbnail: (vd.thumbnail?.thumbnails?.slice(-1)?.[0]?.url || "").replace(/^\/\//, "https://"),
-    url: "https://youtu.be/" + vd.videoId,
+    title,
+    description,
+    duration,
+    thumbnail,
+    url: "https://youtu.be/" + videoId,
     chapters: null,
     subtitles: makeCaps(captions?.captionTracks),
     automatic_captions: makeCaps(
@@ -129,7 +141,7 @@ export async function getVideoInfo(url: string): Promise<VideoInfo> {
     const videoId = extractVideoId(url);
     if (!videoId) throw new Error("Invalid YouTube URL");
     const player = await fetchInnertube(videoId);
-    return parseInnertube(player);
+    return await parseInnertube(player, videoId);
   }
 }
 
