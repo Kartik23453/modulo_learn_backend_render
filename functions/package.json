@@ -16,8 +16,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "firebase-admin": "^13.6.0",
-    "neo4j-driver": "^6.2.0",
-    "youtube-dl-exec": "^3.1.9"
+    "neo4j-driver": "^6.2.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
