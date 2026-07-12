@@ -60,11 +60,11 @@ async function fetchInnertube(videoId: string, clientIdx = 0): Promise<any> {
     },
   });
   const data = await res.json();
-  const ps = data.playabilityStatus;
-  if (data.error || ps?.status === "UNPLAYABLE" || ps?.status === "ERROR" || ps?.status === "LOGIN_REQUIRED") {
-    return fetchInnertube(videoId, clientIdx + 1);
-  }
-  return data;
+  if (data.error) return fetchInnertube(videoId, clientIdx + 1);
+  const ps = data.playabilityStatus?.status;
+  if (ps === "UNPLAYABLE" || ps === "ERROR") return fetchInnertube(videoId, clientIdx + 1);
+  if (data.videoDetails || data.captions) return data;
+  return fetchInnertube(videoId, clientIdx + 1);
 }
 
 async function parseInnertube(data: any, videoId: string): Promise<VideoInfo> {
