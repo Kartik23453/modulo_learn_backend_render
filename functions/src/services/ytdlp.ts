@@ -21,8 +21,8 @@ export async function getVideoInfo(url: string): Promise<VideoInfo> {
   const data: any = await youtubedl(url, {
     dumpSingleJson: true,
     noDownload: true,
-    extractorArgs: "youtube:player_client=android;skip=webpage",
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    extractorArgs: "youtube:player_client=ios",
+    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
   } as any);
 
   return {
@@ -49,8 +49,8 @@ export async function getPlaylistVideos(url: string): Promise<{
   const data: any = await youtubedl(url, {
     dumpSingleJson: true,
     noDownload: true,
-    extractorArgs: "youtube:player_client=android;skip=webpage",
-    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    extractorArgs: "youtube:player_client=ios",
+    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
   } as any);
 
   const videos: VideoInfo[] = data.entries.map((entry: any) => ({
