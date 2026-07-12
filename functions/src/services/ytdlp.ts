@@ -24,6 +24,42 @@ function extractVideoId(url: string): string | null {
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 
+const DEFAULT_PROXIES = [
+  "http://38.54.71.67:80",
+  "http://67.43.228.81:16081",
+  "http://198.49.68.80:80",
+  "http://103.111.136.82:8199",
+  "http://45.32.82.194:1080",
+];
+
+function getYtdlpOpts(proxy?: string): any {
+  const opts: any = {
+    dumpSingleJson: true,
+    noDownload: true,
+    extractorArgs: "youtube:player_client=android;skip=webpage",
+    userAgent: UA,
+    socketTimeout: 15,
+  };
+  if (proxy) opts.proxy = proxy;
+  return opts;
+}
+
+async function tryYtdlpWithProxies(url: string): Promise<any> {
+  const proxies = (process.env.YOUTUBE_PROXIES || "").split(",").filter(Boolean);
+  if (proxies.length === 0) proxies.push(...DEFAULT_PROXIES);
+
+  const attempts = [undefined, ...proxies];
+
+  for (const proxy of attempts) {
+    try {
+      return await youtubedl(url, getYtdlpOpts(proxy) as any);
+    } catch {
+      continue;
+    }
+  }
+  throw new Error("All yt-dlp attempts (direct + proxies) failed");
+}
+
 async function fetchOembed(videoId: string): Promise<{ title: string; thumbnail: string }> {
   const res = await fetch(
     `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`
@@ -63,12 +99,7 @@ export async function getVideoInfo(url: string): Promise<VideoInfo> {
   if (!videoId) throw new Error("Invalid YouTube URL");
 
   try {
-    const data: any = await youtubedl(url, {
-      dumpSingleJson: true,
-      noDownload: true,
-      extractorArgs: "youtube:player_client=android;skip=webpage",
-      userAgent: UA,
-    } as any);
+    const data: any = await tryYtdlpWithProxies(url);
 
     return {
       title: data.title,
