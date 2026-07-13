@@ -5,8 +5,25 @@
 > common integration mistakes. Read the [Complete TypeScript SDK](#9-complete-typescript-sdk) section
 > first if you are generating client code.
 
-**Base URL (emulator):** `http://127.0.0.1:5001/modulo-learn-75e14/us-central1/api`
-**Base URL (production):** `https://us-central1-modulo-learn-75e14.cloudfunctions.net/api`
+**Base URL:** `https://modulo-learn-backend-render.onrender.com`
+
+### Quick Reference
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/test` | ❌ | Health check |
+| `POST` | `/auth/signup` | ❌ | Create account |
+| `POST` | `/auth/login` | ❌ | Get JWT token |
+| `GET` | `/auth/me?uid=` | ✅ | Get profile |
+| `POST` | `/ask` | ❌ | Get YouTube timestamps |
+| `POST` | `/courses` | ✅ | Create course from timestamps |
+| `POST` | `/courses/:courseId/enroll` | ✅ | Enroll with deadline |
+| `POST` | `/courses/:courseId/lectures/:lectureId/complete` | ✅ | Mark lecture done |
+| `GET` | `/courses/:courseId/progress` | ✅ | Course completion stats |
+| `GET` | `/courses` | ✅ | List enrolled courses |
+| `GET` | `/help` | ❌ | HTML docs page |
+
+**Auth:** `Authorization: Bearer <token>` (JWT expires in 1 hour, no refresh endpoint)
 
 ---
 
@@ -58,7 +75,7 @@ interface VideoAskResponse {
   timestamps: Timestamp[];
 }
 
-interface PlaylistVideo { title: string; url: string; thumbnail: string; timestamps: Timestamp[]; }
+interface PlaylistVideo { title: string; url: string; thumbnail: string; timestamps: Timestamp[]; source?: string; }
 interface PlaylistAskResponse {
   type: "playlist";
   title: string;
@@ -691,7 +708,7 @@ All API errors use a single consistent shape:
 ### Recommended Fetch Wrapper
 
 ```typescript
-const BASE_URL = "https://us-central1-modulo-learn-75e14.cloudfunctions.net/api";
+const BASE_URL = "https://modulo-learn-backend-render.onrender.com";
 
 async function apiRequest<T>(
   endpoint: string,
@@ -912,7 +929,7 @@ MATCH (u:User)-[e:ENROLLED_IN]->(c:Course) RETURN u.id, c.title, e.deadline
 // api.ts — Modulo Learn API SDK
 
 const BASE_URL = import.meta.env?.VITE_API_URL
-  ?? "https://us-central1-modulo-learn-75e14.cloudfunctions.net/api";
+  ?? "https://modulo-learn-backend-render.onrender.com";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -933,7 +950,7 @@ export interface MeResponse extends Record<string, unknown> {
 export interface Timestamp      { start_seconds: number; title: string; }
 
 export interface VideoAskResponse  { type: "video"; title: string; url: string; thumbnail: string; timestamps: Timestamp[]; }
-export interface PlaylistVideo     { title: string; url: string; thumbnail: string; timestamps: Timestamp[]; }
+export interface PlaylistVideo     { title: string; url: string; thumbnail: string; timestamps: Timestamp[]; source?: string; }
 export interface PlaylistAskResponse { type: "playlist"; title: string; url: string; videos: PlaylistVideo[]; }
 export type AskResponse = VideoAskResponse | PlaylistAskResponse;
 
